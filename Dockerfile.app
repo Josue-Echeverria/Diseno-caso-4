@@ -1,6 +1,6 @@
-FROM node:14
+FROM node:18-alpine
 
-WORKDIR /app
+WORKDIR .
 
 COPY package*.json ./
 
@@ -10,4 +10,4 @@ COPY . .
 
 EXPOSE 3000
 
-CMD ["node", "app.js"]
+CMD ["node", "app/app.js"]

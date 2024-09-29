@@ -1,4 +1,15 @@
+# Usa la imagen oficial de MongoDB
+FROM mongo
 
-FROM mongo:latest
+# Establece las variables de entorno para el usuario root
+ENV MONGO_INITDB_ROOT_USERNAME=root
+ENV MONGO_INITDB_ROOT_PASSWORD=password
+
+# Copia los archivos de inicialización al directorio de entrada de MongoDB
+COPY ./mongo_data /docker-entrypoint-initdb.d
+
+# Expone el puerto 27017
 EXPOSE 27017
+
+# Comando para iniciar MongoDB
 CMD ["mongod"]
