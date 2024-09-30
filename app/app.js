@@ -1,5 +1,6 @@
 const { createClient } = require('redis');
 const { MongoClient } = require('mongodb');
+const axios = require('axios');
 const express = require("express");
 const app = express();
 
@@ -72,40 +73,59 @@ app.get("/documentsPool", async (req, res) => {
   }
 });
 
-// Middleware para verificar el caché
-function checkCache(req, res, next) {
-  const { param1, param2 } = req.query;
-  const cacheKey = `${param1}:${param2}`;
 
-  redisClient.get(cacheKey, (err, data) => {
-    if (err) throw err;
-
-    if (data !== null) {
-      res.send(JSON.parse(data));
-    } else {
-      next();
-    }
-  });
-}
-
-app.get("/documents/redis",  checkCache, async (req, res) => {
+app.get("/documents/:id", async (req, res) => {
   try{
-    await client.connect();
-    const database = client.db('TPet');
-    const collection = database.collection('HistorialMascotas');
-    const totalDocuments = await collection.countDocuments();
-    const sampleSize = Math.ceil(totalDocuments * 0.3);
-    const result = await collection.aggregate([
-      { $sample: { size: sampleSize } }
-  ]).toArray();
-    redisClient.setex(cacheKey, 60, JSON.stringify(result.slice(0,10)));
-    res.json(result);
+    const id = req.params.id;
+    const database = mongoClient.db('db_Tvet');
+    const collection = database.collection('Pets');
+    let idAleatorio
+    idAleatorio = generarNumeroAleatorio();
+    const documento = await collection.findOne(
+      {id: parseInt(idAleatorio, 10) },
+      { projection: { _id: 0 } }  
+    );
+    res.json(documento);
   } 
   catch (error) {
     console.error(error);
     res.status(500).send('Error fetching data.');
-  } finally {
-    await client.close();
-}
+  }
 });
 
+
+app.get("/documentsredis", async (req, res) => {
+  try{
+    const database = mongoClient.db('db_Tvet');
+    const collection = database.collection('Pets');
+    let idAleatorio
+    const totalDocuments = await collection.countDocuments();
+    const sampleSize = Math.ceil(totalDocuments * 0.35);
+    let totalData = [];
+    for (let i = 1; i<= sampleSize; i++){
+      idAleatorio = generarNumeroAleatorio();
+      const idString = idAleatorio.toString();
+      const value = await redisClient.get(idString);
+      if (value === null) {
+        const documento = await collection.findOne(
+          { id: parseInt(idAleatorio, 10) },
+          { projection: { _id: 0 } }  
+        );
+        await redisClient.set(idString, JSON.stringify(documento));
+        totalData.push(documento)
+      } else {
+        totalData.push(value)
+      }
+    }
+    res.json(totalData)
+  }
+  catch (error) {
+    console.error(error);
+    res.status(500).send('Error fetching data.');
+  }
+});
+
+
+function generarNumeroAleatorio() {
+  return Math.floor(Math.random() * 60000) + 1;
+}
