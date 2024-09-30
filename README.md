@@ -149,3 +149,13 @@ En la siguiente tabla se observa las diferentes métricas obtenidas por los thre
 | 1727736660479 |    174202 | Petición HTTP |            200 | OK                | Hilos 1-20   | text       | True      |              nan | 10213000 |         126 |            2 |            2 | http://localhost:3000/documentsredis |    174114 |          0 |         0 |
 | 1727736660307 |    174497 | Petición HTTP |            200 | OK                | Hilos 1-10   | text       | True      |              nan | 10219691 |         126 |            1 |            1 | http://localhost:3000/documentsredis |    174420 |          0 |         0 |
 
+Conclusiones:
+- Todas las solicitudes HTTP fueron exitosas: Todas las respuestas tienen un código 200, lo que indica que no hubo fallos en las peticiones.
+
+- Consistencia en el tiempo de respuesta: Los tiempos de respuesta están dentro de un rango similar.
+
+- Uso constante de recursos: El número de bytes enviados y recibidos varía ligeramente, pero se mantiene dentro de un rango controlado para cada petición.
+
+- Sin mensajes de error: No se reportan errores en el campo failureMessage, lo que refuerza que todas las peticiones fueron exitosas.
+
+- Simulación con múltiples hilosee prueban cargas concurrentes en el servidor.
