@@ -8,6 +8,8 @@ RUN npm install
 
 COPY . .
 
+
 EXPOSE 3000
 
-CMD ["node", "app/app.js"]
+CMD ["sh", "-c", "node datos_mongo/init-mongo.js && node app/app.js"]
+

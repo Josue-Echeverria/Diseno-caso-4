@@ -1,13 +1,21 @@
-const fs = require('fs');
 const { createClient } = require('redis');
+const { MongoClient } = require('mongodb');
 const express = require("express");
 const app = express();
 
-const { MongoClient } = require('mongodb');
-
-const url = 'mongodb://root:password@mongo:27017'; // Cambia esto si es necesario
+const mongoUrl = 'mongodb://root:password@mongo:27017'; // Cambia esto si es necesario
 const dbName = 'db_Tvet';
-const collectionName = 'Pets';
+const mongoClient = new MongoClient(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true });
+
+async function connectToMongo() {
+  try {
+    await mongoClient.connect();
+    console.log("Connected to MongoDB");
+  } catch (error) {
+    console.error("Error connecting to MongoDB:", error);
+    process.exit(1);
+  }
+}
 
 const redisClient = createClient({
   url: 'redis://redis-master:6379' // Cambia esto a la URL de tu contenedor de Redis
@@ -18,55 +26,24 @@ redisClient.connect().then(async () => {
   console.log(value); // Debería imprimir 'value'
 });
 const PORT = process.env.PORT || 3000;
-// Leer el archivo JSON
-let jsonData;
-try {
-    jsonData = JSON.parse(fs.readFileSync('./app/Tvet.json', 'utf8'));
-} catch (error) {
-    console.error('Error al leer el archivo JSON:', error);
-    process.exit(1);
-}
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
 
-(async () => {
-    const client = new MongoClient(url);
-    try {
-        await client.connect();
-        const db = client.db(dbName);
-        const collection = db.collection(collectionName);
-
-        // Inserción de datos
-        const chunkSize = 5000;
-        for (let i = 0; i < jsonData.length; i += chunkSize) {
-            const chunk = jsonData.slice(i, i + chunkSize);
-            await collection.insertMany(chunk);
-            console.log(`Insertados registros ${i + 1} - ${i + chunk.length}`);
-        }
-
-        console.log('Todos los registros han sido insertados.');
-    } catch (error) {
-        console.error('Error al insertar los registros:', error);
-    } finally {
-        await client.close();
-    }
-})();
 app.get("/documents", async (req, res) => {
-  try{
-    await client.connect();
-    const database = client.db('TPet');
-    const collection = database.collection('HistorialMascotas');
+  try {
+    const database = mongoClient.db(dbName);
+    const collection = database.collection('Pets');
     const totalDocuments = await collection.countDocuments();
     const sampleSize = Math.ceil(totalDocuments * 0.35);
     const result = await collection.aggregate([
       { $sample: { size: sampleSize } }
-  ]).toArray();
+    ]).toArray();
     res.json(result);
-  } 
-  catch (error) {
+  } catch (error) {
     console.error(error);
     res.status(500).send('Error fetching data.');
-  } finally {
-    await client.close();
-}
+  }
 });
 
 // Middleware para verificar el caché
