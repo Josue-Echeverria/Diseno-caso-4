@@ -8,6 +8,105 @@ Estudiantes:
 - Luany Masís Aagesen
 
 
+## Datos 
+Se utilizó mongodb como base de datos, en donde se registraron 60000 documentos JSON con el siguiente formato:
+```bash
+
+{ "id": 43949,
+  "firstname": "Alexis",
+  "lastname": "Mena Santana",
+  "city": "San Cristobal de las Casas",
+  "direction": "West",
+  "age": 4,
+  "sex": "male",
+  "med_record": "Fichar Gemíparo Increíble Gemiqueo Fiducia Incruentamente ."
+}
+```
+Simmulando el registro medico que tendria una mascota en la veterinaria
+## Servicio REST 
+Se utilizó javascript junto con express para la implementación del servicio rest
+
+## Endpoints
+### Conexion simple
+```bash
+(GET) http://localhost:3000/documents
+```
+Esta programado para obtener exactamente el 35% de los registros de mongo lo cual equivale a 21000 documentos JSON. Se realizaron 
+
+#### Prueba
+Se realizo una prueba con 20 hilos en una laptop con un Core i5 12th gen y 12GB de RAM, cada hilo toma 0.5s en levantar por lo que para tener los 20 hilos trabajando en paralelo, toma 10 segundos
+* Rendimiento del cpu del contenedor de mongo:
+
+![image](https://github.com/user-attachments/assets/0b400b45-79d4-489a-9565-8c06d0cd080a)
+
+* Rendimiento del cpu del contenedor del servicio de REST:
+  
+![image](https://github.com/user-attachments/assets/73e50ac3-bf23-460d-83a6-74860390f6fb)
+
+* Rendimiento de la maquina;
+
+![image](https://github.com/user-attachments/assets/f0b636c6-25e1-4246-99e2-e1378451c901)
+
+Como se puede apreciar en las graficas, se obtuvo un 200% de uso de la CPU del contenedor del Rest service, mientras que el contenedor de mongo tuvo dos picos de ejecucion, los cuales resultaron en el ~100% de uso del CPU del contenedor de mongo, la ejecucucion de ambos siempre resulta en el 100% del uso del CPU de la maquina, la respuesta media de este endpoint resultó en 21.781 segundos
+
+
+### Conexion pool 
+```bash
+(GET) http://localhost:3000/documentspool
+```
+Se utilizó una conexion en pool con un maximo de 25 conexiones para manejar las pruebas con los 20 usaurios concurrentes. Esta programado para obtener exactamente el 35% de los registros de mongo lo cual equivale a 21000 documentos JSON.
+Conexion pool:
+```Javascript
+const mongoClient = new MongoClient(mongoUrl, {
+  maxPoolSize: 25, // Tamaño del pool de conexiones
+  minPoolSize: 5,  // Tamaño mínimo del pool de conexiones
+  maxIdleTimeMS: 30000, // Tiempo máximo de inactividad antes de cerrar una conexión
+  waitQueueTimeoutMS: 5000 // Tiempo máximo de espera en la cola para obtener una conexión
+});
+```
+#### Prueba 
+Se realizo una prueba con 20 hilos en una laptop con un Core i5 12th gen y 12GB de RAM, cada hilo toma 0.5s en levantar por lo que para tener los 20 hilos trabajando en paralelo, toma 10 segundos
+* Rendimiento del cpu del contenedor de mongo:
+
+![image](https://github.com/user-attachments/assets/c3afc66f-f2dc-4e7f-9bbc-9b2082f59f8d)
+
+* Rendimiento del cpu del contenedor del servicio de REST:
+  
+![image](https://github.com/user-attachments/assets/0494a3a3-9bac-4a21-bdf6-b70b591ca90e)
+
+* Redimiento de la maquina
+
+![image](https://github.com/user-attachments/assets/df1ad543-5cba-4a12-bc4c-83ec6456a9a4)
+
+Como se puede observar se obtuvo una reduccion del 20% del uso de CPU del contenedor de mongo, debido al hecho que con las conexiones pool, se ahorra la creacion de nuevas conexiones cada vez que se hace un request ya que estas se mantienen abiertas, la respuesta media de este endpoint resultó en 20.308 segundos.
+
+### Conexion pool con redis
+```bash
+(GET) http://localhost:3000/documentsredis
+```
+Genera numeros 18000 aleatorios y por cada numero aleatorio realiza un rquest a: 
+```bash
+(GET) http://localhost:3000/documents/{idAleatorio}
+```
+El cual esta programado para primeramente sacar el documento de Redis y retonarlo. Si la llave no existe en redis, se obtiene el documento desde mongo para guardarlo en Redis con el formato: ```{int id:string documento}``` y retornarlo. Finalmente, se reunen todos los documentos con el id aleatorio en un array y los retorna.
+
+#### Prueba
+Se realizo una prueba con 20 hilos en una laptop con un Core i5 12th gen y 16GB de RAM, cada hilo toma 0.5s en levantar por lo que para tener los 20 hilos trabajando en paralelo, toma 10 segundos
+
+* Rendimiento del contenedor de mongo:
+  
+![image](https://github.com/user-attachments/assets/0eada9a3-6436-4649-8494-4792ecfe78a7)
+
+* Rendimiento del contenedor del servicio de REST:
+  
+![image](https://github.com/user-attachments/assets/ee270bb1-3716-4bc3-85bc-6dfcd0fd2370)
+
+* Rendimiento del cpu del contenedor del servicio de REST:
+
+![image](https://github.com/user-attachments/assets/75c8cc21-9cc9-4e42-b0d9-2e30d149d3a1)
+
+Para este endpoint se obtuvieron resultados distintos ya que para aprovechar la memoria cache, debemos de programar el endpoint de forma distinta ya que inicialmente, los enpoints no recibian parametros y por lo tanto solo retornaban la cantidad de documentos requeridos en un solo chunk, mientra que con este se realizaron peticiones individuales por cada archivo, por lo que el tiempo de respuesta es mayor. pero como se puede apreciar en el uso de CPU del contenedor de mongo, se estabiliza despues de un tiempo, esto se debe a que conforme pasa el tiempo se guardan mas documentos en el cache de redis por lo que se debend e realizar menos peticiones a la base d e datos.
+
 
 # Test a los 3 endpoints
 Para este test se configura el Jmeter con 20 hilos que hacen los distintos request HTTP a cada endpoint, el uso de CPU aumenta debido a que se estan haciendo varias pruebas a la vez:
