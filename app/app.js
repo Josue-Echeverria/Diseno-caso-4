@@ -1,6 +1,5 @@
 const { createClient } = require('redis');
 const { MongoClient } = require('mongodb');
-const axios = require('axios');
 const express = require("express");
 const app = express();
 
@@ -29,7 +28,6 @@ const redisClient = createClient({
 redisClient.connect().then(async () => {
   await redisClient.set('key', 'value');
   const value = await redisClient.get('key');
-  console.log(value); // Debería imprimir 'value'
 });
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
@@ -64,7 +62,8 @@ app.get("/documentsPool", async (req, res) => {
     const totalDocuments = await collection.countDocuments();
     const sampleSize = Math.ceil(totalDocuments * 0.35);
     const result = await collection.aggregate([
-      { $sample: { size: sampleSize } }
+      { $sample: { size: sampleSize } },  
+      { $sort: { id: 1 } } 
     ]).toArray();
     res.json(result);
   } catch (error) {
@@ -74,25 +73,30 @@ app.get("/documentsPool", async (req, res) => {
 });
 
 
+
 app.get("/documents/:id", async (req, res) => {
   try{
     const id = req.params.id;
     const database = mongoClient.db('db_Tvet');
     const collection = database.collection('Pets');
-    let idAleatorio
-    idAleatorio = generarNumeroAleatorio();
-    const documento = await collection.findOne(
-      {id: parseInt(idAleatorio, 10) },
-      { projection: { _id: 0 } }  
-    );
-    res.json(documento);
+    const idString = id.toString();
+    const value = await redisClient.get(idString);
+    if (value === null) {
+      const documento = await collection.findOne(
+        { id: parseInt(id, 10) },
+        { projection: { _id: 0 } }  
+      );
+      await redisClient.set(idString, JSON.stringify(documento));
+      res.json(documento);
+    } else {
+      res.json(JSON.parse(value));
+    }
   } 
   catch (error) {
     console.error(error);
     res.status(500).send('Error fetching data.');
   }
 });
-
 
 app.get("/documentsredis", async (req, res) => {
   try{
@@ -105,18 +109,13 @@ app.get("/documentsredis", async (req, res) => {
     for (let i = 1; i<= sampleSize; i++){
       idAleatorio = generarNumeroAleatorio();
       const idString = idAleatorio.toString();
-      const value = await redisClient.get(idString);
-      if (value === null) {
-        const documento = await collection.findOne(
-          { id: parseInt(idAleatorio, 10) },
-          { projection: { _id: 0 } }  
-        );
-        await redisClient.set(idString, JSON.stringify(documento));
-        totalData.push(documento)
-      } else {
-        totalData.push(value)
+      const response = await fetch(`http://localhost:3000/documents/${idString}`);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
       }
-    }
+      const document = await response.json();
+      totalData.push(document)
+      }
     res.json(totalData)
   }
   catch (error) {
