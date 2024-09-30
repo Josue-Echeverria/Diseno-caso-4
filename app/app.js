@@ -1,36 +1,40 @@
-const express = require("express");
-const app = express();
-
+const fs = require('fs');
 const { MongoClient } = require('mongodb');
-const uri = "mongodb+srv://lmaagesen:L8Jn62DDIw3EVENj@clustercaso4ds.3megf.mongodb.net/?retryWrites=true&w=majority&appName=ClusterCaso4DS";
-const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
 
+const url = 'mongodb://root:password@mongo:27017'; // Cambia esto si es necesario
+const dbName = 'db_Tvet';
+const collectionName = 'Pets';
 
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`Server listening on ${PORT}`);
-});
-
-
-app.get("/documents", async (req, res) => {
-  try{
-    await client.connect();
-    const database = client.db('TPet');
-    const collection = database.collection('HistorialMascotas');
-    const totalDocuments = await collection.countDocuments();
-    const sampleSize = Math.ceil(totalDocuments * 0.3);
-    const result = await collection.aggregate([
-      { $sample: { size: sampleSize } }
-  ]).toArray();
-    console.log(result);
-    res.json(result);
-  } 
-  catch (error) {
-    console.error(error);
-    res.status(500).send('Error fetching data.');
-  } finally {
-    await client.close();
+// Leer el archivo JSON
+let jsonData;
+try {
+    jsonData = JSON.parse(fs.readFileSync('./app/Tvet.json', 'utf8'));
+} catch (error) {
+    console.error('Error al leer el archivo JSON:', error);
+    process.exit(1);
 }
-});
+
+(async () => {
+    const client = new MongoClient(url);
+    try {
+        await client.connect();
+        const db = client.db(dbName);
+        const collection = db.collection(collectionName);
+
+        // Inserción de datos
+        const chunkSize = 5000;
+        for (let i = 0; i < jsonData.length; i += chunkSize) {
+            const chunk = jsonData.slice(i, i + chunkSize);
+            await collection.insertMany(chunk);
+            console.log(`Insertados registros ${i + 1} - ${i + chunk.length}`);
+        }
+
+        console.log('Todos los registros han sido insertados.');
+    } catch (error) {
+        console.error('Error al insertar los registros:', error);
+    } finally {
+        await client.close();
+    }
+})();
+
 

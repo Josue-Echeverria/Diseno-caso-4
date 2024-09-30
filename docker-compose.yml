@@ -12,15 +12,12 @@ services:
     environment:
       - NODE_ENV=development
 
-
   mongo:
     build: 
       dockerfile: Dockerfile.mongo
     container_name: mongodb_container
     ports:
       - "27017:27017"
-    volumes:
-      - ./mongo_data:/docker-entrypoint-initdb.d
     networks:
       - web
 
