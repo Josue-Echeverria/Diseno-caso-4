@@ -5,7 +5,12 @@ const app = express();
 
 const mongoUrl = 'mongodb://root:password@mongo:27017'; // Cambia esto si es necesario
 const dbName = 'db_Tvet';
-const mongoClient = new MongoClient(mongoUrl, { useNewUrlParser: true, useUnifiedTopology: true });
+const mongoClient = new MongoClient(mongoUrl, {
+  maxPoolSize: 25, // Tamaño del pool de conexiones
+  minPoolSize: 5,  // Tamaño mínimo del pool de conexiones
+  maxIdleTimeMS: 30000, // Tiempo máximo de inactividad antes de cerrar una conexión
+  waitQueueTimeoutMS: 5000 // Tiempo máximo de espera en la cola para obtener una conexión
+});
 
 async function connectToMongo() {
   try {
@@ -30,7 +35,28 @@ app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
 
+
 app.get("/documents", async (req, res) => {
+  const client = new MongoClient(mongoUrl);
+  try {
+    await client.connect();
+    const database = client.db('db_Tvet');
+    const collection = database.collection('Pets');
+    const totalDocuments = await collection.countDocuments();
+    const sampleSize = Math.ceil(totalDocuments * 0.35);
+    const result = await collection.aggregate([
+      { $sample: { size: sampleSize } }
+    ]).toArray();
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error fetching data.');
+  } finally {
+    await client.close();
+  }
+});
+
+app.get("/documentsPool", async (req, res) => {
   try {
     const database = mongoClient.db(dbName);
     const collection = database.collection('Pets');
