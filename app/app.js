@@ -55,6 +55,24 @@ app.get("/documents", async (req, res) => {
   }
 });
 
+app.get("/documentsage", async (req, res) => {
+  const client = new MongoClient(mongoUrl);
+  try {
+    await client.connect();
+    const database = client.db('db_Tvet');
+    const collection = database.collection('Pets');
+    const result = await collection.find(
+      { age: { $lt: 10} }
+    ).toArray();
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error fetching data.');
+  } finally {
+    await client.close();
+  }
+});
+
 app.get("/documentsPool", async (req, res) => {
   try {
     const database = mongoClient.db(dbName);
@@ -71,6 +89,7 @@ app.get("/documentsPool", async (req, res) => {
     res.status(500).send('Error fetching data.');
   }
 });
+
 
 
 
