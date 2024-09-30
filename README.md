@@ -6,3 +6,8 @@ Estudiantes:
 - Josué Echeverría Pérez
 - Harlen Quirós Gómez
 - Luany Masís Aagesen
+
+
+
+# Test a los 3 endpoints
+Para este test se configura 
